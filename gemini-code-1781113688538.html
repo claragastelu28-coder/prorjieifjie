@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo SERBACH - Casilleros de Cartón</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            color: #333;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>Proyecto SERBACH - Prototipo de Aula</h2>
+        <p>Arrastra el ratón para rotar la vista. Usa la rueda para hacer zoom.</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // 1. Configuración Básica de la Escena
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xe0e0e0);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Vista desde arriba
+        camera.position.set(0, 10, 5); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        // 2. Luces
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(5, 10, 7);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // 3. Creación del Aula (8m ancho x 4m largo)
+        // Usaremos la escala 1 unidad = 1 metro
+        const roomWidth = 8;
+        const roomDepth = 4;
+        const wallHeight = 3;
+
+        // Suelo
+        const floorGeometry = new THREE.PlaneGeometry(roomWidth, roomDepth);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Material para paredes
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+
+        // Pared Trasera
+        const backWallGeo = new THREE.BoxGeometry(roomWidth, wallHeight, 0.2);
+        const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
+        backWall.position.set(0, wallHeight / 2, -roomDepth / 2);
+        backWall.receiveShadow = true;
+        scene.add(backWall);
+
+        // Pared Izquierda
+        const leftWallGeo = new THREE.BoxGeometry(0.2, wallHeight, roomDepth);
+        const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
+        leftWall.position.set(-roomWidth / 2, wallHeight / 2, 0);
+        leftWall.receiveShadow = true;
+        scene.add(leftWall);
+
+        // Pared Derecha
+        const rightWallGeo = new THREE.BoxGeometry(0.2, wallHeight, roomDepth);
+        const rightWall = new THREE.Mesh(rightWallGeo, wallMaterial);
+        rightWall.position.set(roomWidth / 2, wallHeight / 2, 0);
+        rightWall.receiveShadow = true;
+        scene.add(rightWall);
+
+        // 4. Prototipo de Casilleros de Cartón
+        const boxWidth = 0.50;  // 50 cm
+        const boxHeight = 0.30; // 30 cm
+        const boxDepth = 0.40;  // 40 cm
+
+        const rows = 4; // 4 cajas de altura
+        const cols = 5; // 5 columnas (como en la foto que enviaste)
+
+        const boxGeometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+        const boxMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xbca07d, // Color cartón
+            roughness: 0.9,  // Mate
+            metalness: 0.1
+        });
+
+        // Grupo para mantener todos los casilleros juntos
+        const lockersGroup = new THREE.Group();
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const box = new THREE.Mesh(boxGeometry, boxMaterial);
+                
+                // Posicionar cada caja
+                const x = (c * boxWidth) - ((cols * boxWidth) / 2) + (boxWidth / 2);
+                const y = (r * boxHeight) + (boxHeight / 2);
+                const z = 0;
+                
+                box.position.set(x, y, z);
+                box.castShadow = true;
+                box.receiveShadow = true;
+
+                // Añadir bordes oscuros para simular las uniones de las cajas
+                const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
+                const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x8a6e4d, linewidth: 2 });
+                const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+                box.add(edges);
+
+                lockersGroup.add(box);
+            }
+        }
+
+        // Posicionar el bloque de casilleros contra la pared trasera, en el centro
+        lockersGroup.position.set(0, 0, -roomDepth / 2 + boxDepth / 2 + 0.1);
+        scene.add(lockersGroup);
+
+        // 5. Animación y Redimensionamiento
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
